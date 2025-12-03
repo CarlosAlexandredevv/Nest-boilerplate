@@ -21,8 +21,10 @@ export class InjectUserInterceptor implements NestInterceptor {
 
     const routesPublicByPassInterptor = ['/auth/login', '/auth/register'];
 
-    const shouldBypass = routesPublicByPassInterptor.some(route => route === currentRoute);
-    if (shouldBypass) return next.handle()
+    const shouldBypass = routesPublicByPassInterptor.some(
+      (route) => route === currentRoute,
+    );
+    if (shouldBypass) return next.handle();
 
     const payload = request.user;
     if (!payload?.userId) {
@@ -35,12 +37,6 @@ export class InjectUserInterceptor implements NestInterceptor {
         where: { id: payload.userId },
       });
 
-      if (!user.isActive) {
-        throw new ForbiddenException(
-          'Access denied. User blocked',
-        );
-      }
-      
       request.userLogged = user;
       return from(next.handle());
     } catch (error) {

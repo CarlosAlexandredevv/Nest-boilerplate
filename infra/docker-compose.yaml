@@ -9,7 +9,7 @@ services:
       - postgres
       - redis
     ports:
-      - "3002:3002"
+      - '3002:3002'
     environment:
       DATABASE_URL: postgres://root:password@postgres:5432/mydatabase
       REDIS_HOST: redis
@@ -22,20 +22,21 @@ services:
     container_name: redis
     restart: always
     ports:
-      - "6379:6379"
+      - '6379:6379'
 
   postgres:
-    image: postgres:latest
+    image: postgres:16
     container_name: postgres
     restart: always
     ports:
-      - "5432:5432"
+      - '5432:5432'
     environment:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: password
       POSTGRES_DB: mydatabase
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    user: postgres
 
 volumes:
   postgres_data:

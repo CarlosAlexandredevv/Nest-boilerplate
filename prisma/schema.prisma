@@ -4,6 +4,13 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PlanEnum {
+  FREEMIUM
+  PREMIUM
+  ULTIMATE
 }
 
 model User {
@@ -11,9 +18,12 @@ model User {
   name     String
   email    String  @unique
   password String
-  isActive Boolean @default(true)
-
+  emailVerified Boolean @default(false)
+  image String?
+  credits Int @default(100)
+  plans PlanEnum @default(FREEMIUM)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("user")
 }
