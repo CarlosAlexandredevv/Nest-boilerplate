@@ -1,42 +1,30 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { BusinessExceptionFilter } from './@shared/exceptions/business.exception.filter';
-import { ConfigService } from '@nestjs/config';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    logger: ['log', 'error', 'warn', 'debug', 'verbose'],
-  });
+  const app = await NestFactory.create(AppModule);
 
-  app.get(ConfigService);
+  app.use(cookieParser());
 
   app.enableCors({
-    origin: [process.env.FRONTEND_URL],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    origin: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Subdomain'],
     credentials: true,
   });
 
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
       transform: true,
+      forbidNonWhitelisted: true,
     }),
   );
 
-  app.useGlobalFilters(new BusinessExceptionFilter());
-
-  const port = process.env.APP_PORT;
-
-  await app
-    .listen(port)
-    .then(() => {
-      console.info(`Application running on port ${port}`);
-    })
-    .catch((error) => {
-      console.error('Error to start application', error);
-    });
+  const port = process.env.PORT ?? 3001;
+  await app.listen(port);
+  console.log(`Server is running on port ${port}`);
 }
-
 bootstrap();

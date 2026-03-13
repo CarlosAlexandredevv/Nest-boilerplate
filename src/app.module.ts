@@ -1,29 +1,26 @@
-import { Logger, Module } from '@nestjs/common';
-import { PrismaModule } from './providers/prisma/prisma.module';
-import { ConfigModule } from '@nestjs/config';
-import { EventEmitterModule } from '@nestjs/event-emitter';
-import { BullModule } from '@nestjs/bullmq';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { typeOrmConfigFactory } from './config/typeorm.config';
+import { DatabaseModule } from './config/database.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { LoggingMiddleware } from './infra/middleware/logging.middleware';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) =>
+        typeOrmConfigFactory(configService),
+      inject: [ConfigService],
+    }),
+    DatabaseModule,
     AuthModule,
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-    BullModule.forRoot({
-      connection: {
-        host: process.env.REDIS_HOST,
-        port: Number(process.env.REDIS_PORT),
-        password: process.env.REDIS_PASSWORD,
-      },
-    }),
-    EventEmitterModule.forRoot(),
-    PrismaModule,
-  ],
-  controllers: [],
-  providers: [
-    { provide: Logger, useValue: new Logger('AppModule', { timestamp: true }) },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggingMiddleware).forRoutes('*');
+  }
+}
