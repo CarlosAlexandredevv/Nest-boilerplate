@@ -8,7 +8,7 @@ export const typeOrmConfigFactory = (
   type: 'postgres',
   url: configService.getOrThrow<string>('DATABASE_URL'),
   autoLoadEntities: true,
-  synchronize: true,
+  synchronize: false,
 });
 
 export const entities = [User];
