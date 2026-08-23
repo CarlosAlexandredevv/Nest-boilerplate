@@ -6,6 +6,7 @@ import { typeOrmConfigFactory } from './config/typeorm.config';
 import { DatabaseModule } from './config/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { LoggingMiddleware } from './infra/middleware/logging.middleware';
+import { TenantMiddleware } from './infra/middleware/tenant.middleware';
 import { JwtAuthGuard } from './guards/auth.guard';
 import { RoleGuard } from './guards/role.guard';
 
@@ -22,12 +23,13 @@ import { RoleGuard } from './guards/role.guard';
     AuthModule,
   ],
   providers: [
+    TenantMiddleware,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RoleGuard },
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(LoggingMiddleware).forRoutes('*');
+    consumer.apply(LoggingMiddleware, TenantMiddleware).forRoutes('*');
   }
 }

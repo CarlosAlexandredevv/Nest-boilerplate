@@ -13,6 +13,10 @@ export class TenantMiddleware implements NestMiddleware {
   constructor(private readonly tenantRepository: TenantRepository) {}
 
   async use(req: Request, _res: Response, next: NextFunction) {
+    if (req.method === 'OPTIONS') {
+      return next();
+    }
+
     const slug = req.header('x-subdomain')?.trim();
     if (!slug) {
       throw new BadRequestException('X-Subdomain is required');

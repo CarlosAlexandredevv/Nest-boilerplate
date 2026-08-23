@@ -1,12 +1,28 @@
-export function resolveJwtSecret(secret?: string, nodeEnv?: string): string {
-  const env = nodeEnv || process.env.NODE_ENV || 'development';
+export function resolveEnv(
+  jwtSecret = process.env.JWT_SECRET,
+  corsOrigin = process.env.CORS_ORIGIN,
+  nodeEnv = process.env.NODE_ENV,
+): { jwtSecret: string; corsOrigins: string[] } {
+  const env = nodeEnv || 'development';
+  const secret = jwtSecret && jwtSecret !== 'secret' ? jwtSecret : undefined;
+  const corsOrigins = (corsOrigin ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   if (env !== 'development') {
-    if (!secret || secret === 'secret') {
-      throw new Error('JWT_SECRET is required');
-    }
-    return secret;
+    const missing = [
+      !secret && 'JWT_SECRET',
+      !corsOrigins.length && 'CORS_ORIGIN',
+    ].filter(Boolean);
+    if (missing.length) throw new Error(`${missing.join(', ')} is required`);
+    return { jwtSecret: secret!, corsOrigins };
   }
-  return secret || 'secret';
+
+  return {
+    jwtSecret: secret || 'secret',
+    corsOrigins: corsOrigins.length ? corsOrigins : ['http://localhost:3000'],
+  };
 }
 
 export const env = {

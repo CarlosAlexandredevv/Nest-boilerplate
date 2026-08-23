@@ -42,7 +42,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
     const request = context.switchToHttp().getRequest<RequestWithUser>();
     if (
-      request.tenant &&
+      !request.tenant ||
       !canAccessTenant(
         { isSuperAdmin: user.isSuperAdmin, tenantId: user.tenantId },
         request.tenant.id,

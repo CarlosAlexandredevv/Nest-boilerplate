@@ -1,8 +1,4 @@
-import {
-  MiddlewareConsumer,
-  Module,
-  NestModule,
-} from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AuthController } from './controller/auth.controller';
 import { AuthService } from './service/auth.service';
 import { UserRepository } from 'src/infra/repositories/user.repository';
@@ -12,9 +8,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategies/jwt-strategy';
-import { TenantMiddleware } from 'src/infra/middleware/tenant.middleware';
 import { SuperAdminSeed } from 'src/infra/seed/super-admin.seed';
-import { resolveJwtSecret } from 'src/config/env';
+import { resolveEnv } from 'src/config/env';
 
 @Module({
   imports: [
@@ -23,10 +18,11 @@ import { resolveJwtSecret } from 'src/config/env';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: resolveJwtSecret(
+        secret: resolveEnv(
           config.get<string>('JWT_SECRET'),
+          config.get<string>('CORS_ORIGIN'),
           config.get<string>('NODE_ENV'),
-        ),
+        ).jwtSecret,
         signOptions: {
           expiresIn: config.get<string>(
             'JWT_EXPIRES_IN',
@@ -43,12 +39,8 @@ import { resolveJwtSecret } from 'src/config/env';
     TenantRepository,
     MembershipRepository,
     JwtStrategy,
-    TenantMiddleware,
     SuperAdminSeed,
   ],
+  exports: [TenantRepository],
 })
-export class AuthModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(TenantMiddleware).forRoutes(AuthController);
-  }
-}
+export class AuthModule {}
