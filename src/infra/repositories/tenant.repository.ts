@@ -18,11 +18,27 @@ export class TenantRepository {
     return this.repo(em).findOne({ where: { slug } });
   }
 
+  findById(id: string): Promise<Tenant | null> {
+    return this.tenantRepository.findOne({ where: { id } });
+  }
+
+  findAll(): Promise<Tenant[]> {
+    return this.tenantRepository.find({ order: { createdAt: 'DESC' } });
+  }
+
   create(
     input: { name: string; slug: string },
     em?: EntityManager,
   ): Promise<Tenant> {
     const repo = this.repo(em);
     return repo.save(repo.create(input));
+  }
+
+  save(tenant: Tenant): Promise<Tenant> {
+    return this.tenantRepository.save(tenant);
+  }
+
+  remove(tenant: Tenant): Promise<Tenant> {
+    return this.tenantRepository.remove(tenant);
   }
 }

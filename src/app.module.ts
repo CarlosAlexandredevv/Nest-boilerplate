@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeOrmConfigFactory } from './config/typeorm.config';
 import { DatabaseModule } from './config/database.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { TenantsModule } from './modules/tenants/tenants.module';
 import { LoggingMiddleware } from './infra/middleware/logging.middleware';
 import { TenantMiddleware } from './infra/middleware/tenant.middleware';
 import { JwtAuthGuard } from './guards/auth.guard';
@@ -21,6 +22,7 @@ import { RoleGuard } from './guards/role.guard';
     }),
     DatabaseModule,
     AuthModule,
+    TenantsModule,
   ],
   providers: [
     TenantMiddleware,
