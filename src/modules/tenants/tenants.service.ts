@@ -1,9 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { QueryFailedError } from 'typeorm';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { TenantRepository } from '../../infra/repositories/tenant.repository';
 import { CreateTenantDto, UpdateTenantDto } from './dto/tenant.dto';
 
@@ -21,37 +16,18 @@ export class TenantsService {
     return tenant;
   }
 
-  async create(dto: CreateTenantDto) {
-    try {
-      return await this.tenantRepository.create(dto);
-    } catch (error) {
-      this.rethrowUnique(error);
-    }
+  create(dto: CreateTenantDto) {
+    return this.tenantRepository.create(dto);
   }
 
   async update(id: string, dto: UpdateTenantDto) {
     const tenant = await this.findOne(id);
     Object.assign(tenant, dto);
-    try {
-      return await this.tenantRepository.save(tenant);
-    } catch (error) {
-      this.rethrowUnique(error);
-    }
+    return this.tenantRepository.save(tenant);
   }
 
   async remove(id: string) {
     const tenant = await this.findOne(id);
     await this.tenantRepository.remove(tenant);
-  }
-
-  private rethrowUnique(error: unknown): never {
-    if (
-      error instanceof QueryFailedError &&
-      (error as { driverError?: { code?: string } }).driverError?.code ===
-        '23505'
-    ) {
-      throw new ConflictException('Slug already in use');
-    }
-    throw error;
   }
 }
