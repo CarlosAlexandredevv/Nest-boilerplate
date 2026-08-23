@@ -110,9 +110,7 @@ export class AuthService {
     }
 
     const role =
-      membership.role === MembershipRole.ADMIN
-        ? UserRole.ADMIN
-        : UserRole.USER;
+      membership.role === MembershipRole.ADMIN ? UserRole.ADMIN : UserRole.USER;
 
     return this.buildAuthResponse(user, tenant, role);
   }
