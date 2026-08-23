@@ -4,7 +4,6 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { UserRepository } from 'src/infra/repositories/user.repository';
-import { TenantRepository } from 'src/infra/repositories/tenant.repository';
 import { MembershipRepository } from 'src/infra/repositories/membership.repository';
 import { RegisterUserDto } from '../dto/register-user.dto';
 import bcrypt from 'bcryptjs';
@@ -16,6 +15,8 @@ import {
   TenantInfo,
   UserRole,
 } from 'src/models/user';
+import { Membership } from 'src/infra/entities/membership.entity';
+import { Tenant } from 'src/infra/entities/tenant.entity';
 import { User } from 'src/infra/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
@@ -24,7 +25,6 @@ import { DataSource } from 'typeorm';
 export class AuthService {
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly tenantRepository: TenantRepository,
     private readonly membershipRepository: MembershipRepository,
     private readonly jwtService: JwtService,
     private readonly dataSource: DataSource,
@@ -36,15 +36,15 @@ export class AuthService {
     }
 
     await this.dataSource.transaction(async (em) => {
-      const slugTaken = await this.tenantRepository.findBySlug(
-        registerDto.slug,
-        em,
-      );
-      if (slugTaken) {
+      const tenants = em.getRepository(Tenant);
+      const users = em.getRepository(User);
+      const memberships = em.getRepository(Membership);
+
+      if (await tenants.findOne({ where: { slug: registerDto.slug } })) {
         throw new ConflictException('Slug already in use');
       }
 
-      let user = await this.userRepository.findByEmail(registerDto.email, em);
+      let user = await users.findOne({ where: { email: registerDto.email } });
       if (user) {
         const passwordOk = await bcrypt.compare(
           registerDto.password,
@@ -54,28 +54,28 @@ export class AuthService {
           throw new BadRequestException('Invalid credentials');
         }
       } else {
-        user = await this.userRepository.create(
-          {
+        user = await users.save(
+          users.create({
             name: registerDto.name,
             email: registerDto.email,
             password: await bcrypt.hash(registerDto.password, 10),
-          },
-          em,
+          }),
         );
       }
 
-      const tenant = await this.tenantRepository.create(
-        { name: registerDto.tenantName, slug: registerDto.slug },
-        em,
+      const tenant = await tenants.save(
+        tenants.create({
+          name: registerDto.tenantName,
+          slug: registerDto.slug,
+        }),
       );
 
-      await this.membershipRepository.create(
-        {
+      await memberships.save(
+        memberships.create({
           userId: user.id,
           tenantId: tenant.id,
           role: MembershipRole.ADMIN,
-        },
-        em,
+        }),
       );
     });
 

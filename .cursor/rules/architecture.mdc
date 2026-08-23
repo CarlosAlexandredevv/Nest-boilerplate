@@ -1,0 +1,16 @@
+---
+description: Convenções do boilerplate Nest multi-tenant. Sempre aplicar; não reexplorar o repo.
+alwaysApply: true
+---
+
+# Arquitetura
+
+- Camadas: `modules/` (HTTP), `infra/` (entity/repo/middleware/seed/migration), `guards/`, `config/`, `models/`.
+- Tenant **não** vem da URL. Header `X-Subdomain` = slug. CORS já permite esse header.
+- Auth JWT global + `@Public()` / `@Roles()`. User do token: `@CurrentUser()`. Tipos em `src/models/user.ts`.
+- Repo custom (não `Repository<T>` cru no service). Transação: `dataSource.transaction` + `em.getRepository(Entity)` no service — não passar `EntityManager` no repo.
+- Entity nova: classe em `infra/entities`, incluir em `entities` em `src/config/typeorm.config.ts` **e** em `src/config/data-source.ts`. Depois `npm run migration:generate -- src/infra/migration/Nome`.
+- `DatabaseModule` é `@Global()` e faz `forFeature(entities)`. Registrar o repo como `provider` no module que usa.
+- Env: `DATABASE_URL` obrigatório no TypeORM. Fora de development, `JWT_SECRET` (não `secret`) e `CORS_ORIGIN` são obrigatórios (`resolveEnv`).
+- ValidationPipe global: `whitelist`, `forbidNonWhitelisted`, `transform`.
+- Não: `synchronize: true`, AppController “Hello World”, role no `User` (role é membership + JWT).

@@ -1,0 +1,15 @@
+---
+description: Auth JWT, register/login, membership e super admin
+globs: src/modules/auth/**/*.ts,src/guards/**/*.ts,src/models/user.ts
+alwaysApply: false
+---
+
+# Auth
+
+- `AuthController` é `@Public()`. Login exige `req.tenant` (header já resolvido). Register compara `registerDto.slug` com `req.tenantSlug`.
+- Register (transação): slug livre → user novo **ou** existente se bcrypt bater → cria tenant + membership `ADMIN`. Email já usado com senha errada → `Invalid credentials`.
+- Login: senha → se `isSuperAdmin`, token `SUPER_ADMIN` sem membership. Senão precisa membership no tenant do header. Membership `ADMIN`/`USER` vira `UserRole.ADMIN`/`USER`.
+- JWT: `sub`, `email`, `role`, `tenantId`, `isSuperAdmin`. Strategy devolve `userId` (não `sub`).
+- Guard autenticado: sem tenant no request ou `canAccessTenant` falso → 401. Super admin acessa qualquer tenant do header.
+- Seed (`SuperAdminSeed`): cria/promove super admin e tenant `platform` se faltar. Defaults `admin@localhost` / `changeme123`.
+- Mensagens de credencial genéricas (`Invalid credentials`) — não vaze se o email existe.
