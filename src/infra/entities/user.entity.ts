@@ -5,7 +5,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { UserRole } from '../../models/user';
 
 @Entity()
 export class User {
@@ -15,14 +14,14 @@ export class User {
   @Column()
   name: string;
 
-  @Column()
+  @Column({ unique: true })
   email: string;
 
   @Column()
   password: string;
 
-  @Column({ type: 'enum', enum: UserRole })
-  role: UserRole;
+  @Column({ default: false })
+  isSuperAdmin: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

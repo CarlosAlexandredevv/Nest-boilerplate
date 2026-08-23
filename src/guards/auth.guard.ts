@@ -7,7 +7,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import type { Observable } from 'rxjs';
 import { IS_PUBLIC_KEY } from '../common/decorators/public.decorator';
-import type { JwtUser } from '../models/user';
+import type { JwtUser, RequestWithUser } from '../models/user';
+import { canAccessTenant } from '../modules/auth/tenant-access';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -32,15 +33,22 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   handleRequest<TUser = JwtUser>(
     err: Error | null,
     user: JwtUser | false,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _info: unknown,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _context: ExecutionContext,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    status?: unknown,
+    context: ExecutionContext,
   ): TUser {
     if (err || !user) {
       throw err || new UnauthorizedException();
+    }
+
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
+    if (
+      request.tenant &&
+      !canAccessTenant(
+        { isSuperAdmin: user.isSuperAdmin, tenantId: user.tenantId },
+        request.tenant.id,
+      )
+    ) {
+      throw new UnauthorizedException();
     }
 
     return user as TUser;

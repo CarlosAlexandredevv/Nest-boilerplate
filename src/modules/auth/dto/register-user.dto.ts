@@ -1,12 +1,11 @@
 import {
   IsEmail,
-  IsEnum,
   IsNotEmpty,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { UserRole } from '../../../models/user';
 
 export class RegisterUserDto {
   @IsString()
@@ -27,7 +26,14 @@ export class RegisterUserDto {
   @MinLength(8)
   password: string;
 
-  @IsEnum(UserRole)
+  @IsString()
   @IsNotEmpty()
-  role: UserRole;
+  @MaxLength(100)
+  @MinLength(3)
+  tenantName: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/)
+  slug: string;
 }

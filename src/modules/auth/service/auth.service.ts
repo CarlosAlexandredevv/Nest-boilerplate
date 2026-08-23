@@ -1,37 +1,65 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { UserRepository } from 'src/infra/repositories/user.repository';
+import { TenantRepository } from 'src/infra/repositories/tenant.repository';
+import { MembershipRepository } from 'src/infra/repositories/membership.repository';
 import { RegisterUserDto } from '../dto/register-user.dto';
 import bcrypt from 'bcryptjs';
 import { LoginDto } from '../dto/login.dto';
-import { AuthResponse, JwtPayload, User } from 'src/models/user';
+import {
+  AuthResponse,
+  JwtPayload,
+  MembershipRole,
+  TenantInfo,
+  UserRole,
+} from 'src/models/user';
+import { User } from 'src/infra/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly userRepository: UserRepository,
+    private readonly tenantRepository: TenantRepository,
+    private readonly membershipRepository: MembershipRepository,
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(registerDto: RegisterUserDto) {
-    const userExists = await this.userRepository.findByEmail(registerDto.email);
-
-    if (userExists) {
+  async register(registerDto: RegisterUserDto, headerSlug: string) {
+    if (headerSlug !== registerDto.slug) {
       throw new BadRequestException('Invalid credentials');
     }
 
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-    registerDto.password = hashedPassword;
+    const slugTaken = await this.tenantRepository.findBySlug(registerDto.slug);
+    if (slugTaken) {
+      throw new BadRequestException('Invalid credentials');
+    }
 
-    const user = await this.userRepository.create(registerDto);
-    await this.userRepository.save(user);
+    let user = await this.userRepository.findByEmail(registerDto.email);
+    if (!user) {
+      user = await this.userRepository.create({
+        name: registerDto.name,
+        email: registerDto.email,
+        password: await bcrypt.hash(registerDto.password, 10),
+      });
+    }
+
+    const tenant = await this.tenantRepository.create({
+      name: registerDto.tenantName,
+      slug: registerDto.slug,
+    });
+
+    await this.membershipRepository.create({
+      userId: user.id,
+      tenantId: tenant.id,
+      role: MembershipRole.ADMIN,
+    });
 
     return {
       message: 'User registered successfully',
     };
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, tenant: TenantInfo) {
     const user = await this.userRepository.findByEmail(loginDto.email);
     if (!user) {
       throw new BadRequestException('Invalid credentials');
@@ -41,30 +69,50 @@ export class AuthService {
       loginDto.password,
       user.password,
     );
-
     if (!isPasswordValid) {
       throw new BadRequestException('Invalid credentials');
     }
 
-    return this.buildAuthResponse(user);
+    const membership = await this.membershipRepository.findByUserAndTenant(
+      user.id,
+      tenant.id,
+    );
+
+    if (!user.isSuperAdmin && !membership) {
+      throw new BadRequestException('Invalid credentials');
+    }
+
+    const role = membership
+      ? membership.role === MembershipRole.ADMIN
+        ? UserRole.ADMIN
+        : UserRole.USER
+      : UserRole.SUPER_ADMIN;
+
+    return this.buildAuthResponse(user, tenant, role);
   }
-  private buildAuthResponse(user: User): AuthResponse {
+
+  private buildAuthResponse(
+    user: User,
+    tenant: TenantInfo,
+    role: UserRole,
+  ): AuthResponse {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
-      role: user.role,
+      role,
+      tenantId: tenant.id,
+      isSuperAdmin: user.isSuperAdmin,
     };
 
-    const access_token = this.jwtService.sign(payload);
-
     return {
-      access_token,
+      access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role,
+        role,
       },
+      tenant,
     };
   }
 }

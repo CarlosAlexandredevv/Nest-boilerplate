@@ -17,7 +17,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   validate(payload: JwtPayload) {
-    if (!payload?.sub) {
+    if (!payload?.sub || !payload.tenantId) {
       throw new UnauthorizedException('Token inválido');
     }
 
@@ -25,6 +25,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       userId: payload.sub,
       email: payload.email,
       role: payload.role,
+      tenantId: payload.tenantId,
+      isSuperAdmin: payload.isSuperAdmin,
     };
   }
 }

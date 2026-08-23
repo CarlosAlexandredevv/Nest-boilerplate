@@ -30,6 +30,10 @@ export class RoleGuard implements CanActivate {
       throw new UnauthorizedException('Usuário não autenticado');
     }
 
+    if (user.isSuperAdmin) {
+      return true;
+    }
+
     if (!user.role) {
       throw new ForbiddenException('Role do usuário não encontrada');
     }
