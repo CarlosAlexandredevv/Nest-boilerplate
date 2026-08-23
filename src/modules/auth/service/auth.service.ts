@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { UserRepository } from 'src/infra/repositories/user.repository';
 import { TenantRepository } from 'src/infra/repositories/tenant.repository';
 import { MembershipRepository } from 'src/infra/repositories/membership.repository';
@@ -14,6 +18,7 @@ import {
 } from 'src/models/user';
 import { User } from 'src/infra/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
+import { DataSource, QueryFailedError } from 'typeorm';
 
 @Injectable()
 export class AuthService {
@@ -22,6 +27,7 @@ export class AuthService {
     private readonly tenantRepository: TenantRepository,
     private readonly membershipRepository: MembershipRepository,
     private readonly jwtService: JwtService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async register(registerDto: RegisterUserDto, headerSlug: string) {
@@ -29,34 +35,62 @@ export class AuthService {
       throw new BadRequestException('Invalid credentials');
     }
 
-    const slugTaken = await this.tenantRepository.findBySlug(registerDto.slug);
-    if (slugTaken) {
-      throw new BadRequestException('Invalid credentials');
-    }
+    try {
+      await this.dataSource.transaction(async (em) => {
+        const slugTaken = await this.tenantRepository.findBySlug(
+          registerDto.slug,
+          em,
+        );
+        if (slugTaken) {
+          throw new ConflictException('Slug already in use');
+        }
 
-    let user = await this.userRepository.findByEmail(registerDto.email);
-    if (!user) {
-      user = await this.userRepository.create({
-        name: registerDto.name,
-        email: registerDto.email,
-        password: await bcrypt.hash(registerDto.password, 10),
+        let user = await this.userRepository.findByEmail(registerDto.email, em);
+        if (user) {
+          const passwordOk = await bcrypt.compare(
+            registerDto.password,
+            user.password,
+          );
+          if (!passwordOk) {
+            throw new BadRequestException('Invalid credentials');
+          }
+        } else {
+          user = await this.userRepository.create(
+            {
+              name: registerDto.name,
+              email: registerDto.email,
+              password: await bcrypt.hash(registerDto.password, 10),
+            },
+            em,
+          );
+        }
+
+        const tenant = await this.tenantRepository.create(
+          { name: registerDto.tenantName, slug: registerDto.slug },
+          em,
+        );
+
+        await this.membershipRepository.create(
+          {
+            userId: user.id,
+            tenantId: tenant.id,
+            role: MembershipRole.ADMIN,
+          },
+          em,
+        );
       });
+    } catch (error) {
+      if (
+        error instanceof QueryFailedError &&
+        (error as { driverError?: { code?: string } }).driverError?.code ===
+          '23505'
+      ) {
+        throw new ConflictException('Already exists');
+      }
+      throw error;
     }
 
-    const tenant = await this.tenantRepository.create({
-      name: registerDto.tenantName,
-      slug: registerDto.slug,
-    });
-
-    await this.membershipRepository.create({
-      userId: user.id,
-      tenantId: tenant.id,
-      role: MembershipRole.ADMIN,
-    });
-
-    return {
-      message: 'User registered successfully',
-    };
+    return { message: 'User registered successfully' };
   }
 
   async login(loginDto: LoginDto, tenant: TenantInfo) {
@@ -78,15 +112,18 @@ export class AuthService {
       tenant.id,
     );
 
-    if (!user.isSuperAdmin && !membership) {
+    if (user.isSuperAdmin) {
+      return this.buildAuthResponse(user, tenant, UserRole.SUPER_ADMIN);
+    }
+
+    if (!membership) {
       throw new BadRequestException('Invalid credentials');
     }
 
-    const role = membership
-      ? membership.role === MembershipRole.ADMIN
+    const role =
+      membership.role === MembershipRole.ADMIN
         ? UserRole.ADMIN
-        : UserRole.USER
-      : UserRole.SUPER_ADMIN;
+        : UserRole.USER;
 
     return this.buildAuthResponse(user, tenant, role);
   }

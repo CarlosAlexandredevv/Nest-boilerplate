@@ -39,14 +39,6 @@ export interface JwtUser {
   isSuperAdmin: boolean;
 }
 
-export interface RequestUser {
-  userId: string;
-  email: string;
-  role: UserRole;
-  tenantId: string;
-  isSuperAdmin: boolean;
-}
-
 export interface TenantInfo {
   id: string;
   slug: string;
@@ -65,7 +57,7 @@ export interface AuthResponse {
 }
 
 export type RequestWithUser = import('express').Request & {
-  user?: RequestUser;
+  user?: JwtUser;
   tenant?: TenantInfo;
   tenantSlug?: string;
 };

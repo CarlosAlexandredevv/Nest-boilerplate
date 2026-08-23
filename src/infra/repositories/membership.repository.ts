@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Membership } from '../entities/membership.entity';
 import { MembershipRole } from '../../models/user';
 
@@ -11,20 +11,27 @@ export class MembershipRepository {
     private readonly membershipRepository: Repository<Membership>,
   ) {}
 
+  private repo(em?: EntityManager): Repository<Membership> {
+    return em?.getRepository(Membership) ?? this.membershipRepository;
+  }
+
   findByUserAndTenant(
     userId: string,
     tenantId: string,
+    em?: EntityManager,
   ): Promise<Membership | null> {
-    return this.membershipRepository.findOne({ where: { userId, tenantId } });
+    return this.repo(em).findOne({ where: { userId, tenantId } });
   }
 
-  create(input: {
-    userId: string;
-    tenantId: string;
-    role: MembershipRole;
-  }): Promise<Membership> {
-    return this.membershipRepository.save(
-      this.membershipRepository.create(input),
-    );
+  create(
+    input: {
+      userId: string;
+      tenantId: string;
+      role: MembershipRole;
+    },
+    em?: EntityManager,
+  ): Promise<Membership> {
+    const repo = this.repo(em);
+    return repo.save(repo.create(input));
   }
 }

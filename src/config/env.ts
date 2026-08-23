@@ -1,3 +1,14 @@
+export function resolveJwtSecret(secret?: string, nodeEnv?: string): string {
+  const env = nodeEnv || process.env.NODE_ENV || 'development';
+  if (env !== 'development') {
+    if (!secret || secret === 'secret') {
+      throw new Error('JWT_SECRET is required');
+    }
+    return secret;
+  }
+  return secret || 'secret';
+}
+
 export const env = {
   port: Number(process.env.PORT) || 3001,
   databaseUrl:

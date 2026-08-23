@@ -14,6 +14,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategies/jwt-strategy';
 import { TenantMiddleware } from 'src/infra/middleware/tenant.middleware';
 import { SuperAdminSeed } from 'src/infra/seed/super-admin.seed';
+import { resolveJwtSecret } from 'src/config/env';
 
 @Module({
   imports: [
@@ -22,7 +23,10 @@ import { SuperAdminSeed } from 'src/infra/seed/super-admin.seed';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET', 'secret'),
+        secret: resolveJwtSecret(
+          config.get<string>('JWT_SECRET'),
+          config.get<string>('NODE_ENV'),
+        ),
         signOptions: {
           expiresIn: config.get<string>(
             'JWT_EXPIRES_IN',

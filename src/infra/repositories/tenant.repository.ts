@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Tenant } from '../entities/tenant.entity';
 
 @Injectable()
@@ -10,11 +10,19 @@ export class TenantRepository {
     private readonly tenantRepository: Repository<Tenant>,
   ) {}
 
-  findBySlug(slug: string): Promise<Tenant | null> {
-    return this.tenantRepository.findOne({ where: { slug } });
+  private repo(em?: EntityManager): Repository<Tenant> {
+    return em?.getRepository(Tenant) ?? this.tenantRepository;
   }
 
-  create(input: { name: string; slug: string }): Promise<Tenant> {
-    return this.tenantRepository.save(this.tenantRepository.create(input));
+  findBySlug(slug: string, em?: EntityManager): Promise<Tenant | null> {
+    return this.repo(em).findOne({ where: { slug } });
+  }
+
+  create(
+    input: { name: string; slug: string },
+    em?: EntityManager,
+  ): Promise<Tenant> {
+    const repo = this.repo(em);
+    return repo.save(repo.create(input));
   }
 }
